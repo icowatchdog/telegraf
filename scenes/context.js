@@ -1,6 +1,5 @@
 const debug = require('debug')('telegraf:scenes:context')
-const Composer = require('../composer')
-const { safePassThru } = Composer
+const { safePassThru } = require('../composer')
 
 const noop = () => Promise.resolve()
 const now = () => Math.floor(new Date().getTime() / 1000)
@@ -57,7 +56,7 @@ class SceneContext {
       if (silent) {
         return Promise.resolve()
       }
-      const handler = this.current.enterMiddleware
+      const handler = typeof this.current.enterMiddleware === 'function'
         ? this.current.enterMiddleware()
         : this.current.middleware()
       return handler(this.ctx, noop)

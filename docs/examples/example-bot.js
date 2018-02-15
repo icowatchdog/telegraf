@@ -3,8 +3,12 @@ const Extra = require('telegraf/extra')
 const session = require('telegraf/session')
 const { reply } = Telegraf
 
+const randomPhoto = 'https://picsum.photos/200/300/?random'
+const sayYoMiddleware = ({ reply }, next) => reply('yo').then(() => next())
+
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
+// // Register session middleware
 bot.use(session())
 
 // Register logger middleware
@@ -16,7 +20,8 @@ bot.use((ctx, next) => {
   })
 })
 
-const sayYoMiddleware = ({ reply }, next) => reply('yo').then(() => next())
+// Login widget events
+bot.on('connected_website', ({ reply }) => reply('Website connected'))
 
 // Random location on some text messages
 bot.on('text', ({ replyWithLocation }, next) => {
@@ -42,19 +47,16 @@ bot.command('answer', sayYoMiddleware, (ctx) => {
   return ctx.reply('*42*', Extra.markdown())
 })
 
-const catPhoto = 'http://lorempixel.com/400/200/cats/'
-bot.command('cat', ({ replyWithPhoto }) => replyWithPhoto(catPhoto))
+bot.command('cat', ({ replyWithPhoto }) => replyWithPhoto(randomPhoto))
 
 // Streaming photo, in case Telegram doesn't accept direct URL
-bot.command('cat2', ({ replyWithPhoto }) => replyWithPhoto({ url: catPhoto }))
+bot.command('cat2', ({ replyWithPhoto }) => replyWithPhoto({ url: randomPhoto }))
 
 // Look ma, reply middleware factory
 bot.command('foo', reply('http://coub.com/view/9cjmt'))
 
 // Wow! RegEx
-bot.hears(/reverse (.+)/, ({ match, reply }) => {
-  return reply(match[1].split('').reverse().join(''))
-})
+bot.hears(/reverse (.+)/, ({ match, reply }) => reply(match[1].split('').reverse().join('')))
 
 // Start polling
 bot.startPolling()

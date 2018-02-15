@@ -1,4 +1,4 @@
-const debug = require('debug')('telegraf:api')
+const debug = require('debug')('telegraf:client')
 const crypto = require('crypto')
 const fetch = require('node-fetch')
 const fs = require('fs')
@@ -39,6 +39,11 @@ const DefaultOptions = {
   })
 }
 
+const WebhookReplyStub = {
+  webhook: true,
+  details: 'https://core.telegram.org/bots/api#making-requests-when-getting-updates'
+}
+
 function safeJSONParse (text) {
   try {
     return JSON.parse(text)
@@ -47,102 +52,41 @@ function safeJSONParse (text) {
   }
 }
 
-class ApiClient {
-  constructor (token, options, webhookResponse) {
-    this.token = token
-    this.options = Object.assign({}, DefaultOptions, options)
-    this.response = webhookResponse
-  }
-
-  set webhookReply (enable) {
-    this.options.webhookReply = enable
-  }
-
-  get webhookReply () {
-    return this.options.webhookReply
-  }
-
-  callApi (method, extra = {}) {
-    const isMultipartRequest = Object.keys(extra)
-      .filter((x) => extra[x])
-      .some((x) => Array.isArray(extra[x])
-        ? extra[x].some((child) => typeof child.media === 'object' && (child.media.source || child.media.url))
-        : extra[x].source || extra[x].url
-      )
-    if (this.options.webhookReply && !isMultipartRequest && this.response && !this.response.finished && !WebhookBlacklist.includes(method)) {
-      debug('▷ webhook', method)
-      extra.method = method
-      if (typeof this.response.end === 'function') {
-        if (!this.response.headersSent) {
-          this.response.setHeader('connection', 'keep-alive')
-          this.response.setHeader('content-type', 'application/json')
-        }
-        this.response.end(JSON.stringify(extra))
-      } else if (typeof this.response.header === 'object') {
-        this.response.header['connection'] = 'keep-alive'
-        this.response.header['content-type'] = 'application/json'
-        this.response.body = extra
-      }
-      return Promise.resolve({webhook: true})
-    }
-
-    if (!this.token) {
-      throw new TelegramError({
-        error_code: 401,
-        description: 'Bot Token is required'
-      })
-    }
-
-    debug('▶︎ http', method)
-    const buildPayload = isMultipartRequest ? this.buildFormDataPayload(extra) : this.buildJSONPayload(extra)
-    return buildPayload
-      .then((payload) => {
-        payload.agent = this.options.agent
-        return fetch(`${this.options.apiRoot}/bot${this.token}/${method}`, payload)
-      })
-      .then((res) => res.text())
-      .then((text) => {
-        return safeJSONParse(text) || {
-          error_code: 500,
-          description: 'Unsupported message from Telegram',
-          response: text
-        }
-      })
-      .then((data) => {
-        if (!data.ok) {
-          console.log(data);
-          //throw new TelegramError(data)
-        }
-        return data.result
-      })
-  }
-
-  buildJSONPayload (options) {
-    return Promise.resolve({
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'connection': 'keep-alive' },
-      body: JSON.stringify(options)
-    })
-  }
-
-  buildFormDataPayload (options) {
-    if (options.reply_markup && typeof options.reply_markup !== 'string') {
-      options.reply_markup = JSON.stringify(options.reply_markup)
-    }
-    const boundary = crypto.randomBytes(30).toString('hex')
-    const formData = new MultipartStream(boundary)
-    const tasks = Object.keys(options).map((key) => attachFormValue(formData, options[key], key))
-    return Promise.all(tasks).then(() => {
-      return {
-        method: 'POST',
-        headers: { 'content-type': `multipart/form-data; boundary=${boundary}`, 'connection': 'keep-alive' },
-        body: formData
-      }
-    })
-  }
+function includesMedia (payload) {
+  return Object.keys(payload).some(
+    (key) => Array.isArray(payload[key])
+      ? payload[key].some(({ media }) => media && typeof media === 'object' && (media.source || media.url))
+      : payload[key] && typeof payload[key] === 'object' && (payload[key].source || payload[key].url)
+  )
 }
 
-function attachFormValue (form, value, id) {
+function buildJSONConfig (payload) {
+  return Promise.resolve({
+    method: 'POST',
+    compress: true,
+    headers: { 'content-type': 'application/json', 'connection': 'keep-alive' },
+    body: JSON.stringify(payload)
+  })
+}
+
+function buildFormDataConfig (payload) {
+  if (payload.reply_markup && typeof payload.reply_markup !== 'string') {
+    payload.reply_markup = JSON.stringify(payload.reply_markup)
+  }
+  const boundary = crypto.randomBytes(32).toString('hex')
+  const formData = new MultipartStream(boundary)
+  const tasks = Object.keys(payload).map((key) => attachFormValue(formData, key, payload[key]))
+  return Promise.all(tasks).then(() => {
+    return {
+      method: 'POST',
+      compress: true,
+      headers: { 'content-type': `multipart/form-data; boundary=${boundary}`, 'connection': 'keep-alive' },
+      body: formData
+    }
+  })
+}
+
+function attachFormValue (form, id, value) {
   if (!value) {
     return Promise.resolve()
   }
@@ -157,12 +101,12 @@ function attachFormValue (form, value, id) {
   if (Array.isArray(value)) {
     return Promise.all(
       value.map((item) => {
-        if (typeof item.media === 'object') {
-          const attachmentId = crypto.randomBytes(30).toString('hex')
-          return attachFormMedia(form, item.media, attachmentId)
-            .then(() => Object.assign({}, item, { media: `attach://${attachmentId}` }))
+        if (typeof item.media !== 'object') {
+          return Promise.resolve(item)
         }
-        return Promise.resolve(item)
+        const attachmentId = crypto.randomBytes(16).toString('hex')
+        return attachFormMedia(form, item.media, attachmentId)
+          .then(() => Object.assign({}, item, { media: `attach://${attachmentId}` }))
       })
     ).then((items) => form.addPart({
       headers: { 'content-disposition': `form-data; name="${id}"` },
@@ -177,7 +121,7 @@ function attachFormMedia (form, media, id) {
   if (media.url) {
     return fetch(media.url).then((res) =>
       form.addPart({
-        headers: { 'content-disposition': `form-data; name="${id}";filename="${fileName}"` },
+        headers: { 'content-disposition': `form-data; name="${id}"; filename="${fileName}"` },
         body: res.body
       })
     )
@@ -189,12 +133,107 @@ function attachFormMedia (form, media, id) {
     }
     if (isStream(media.source) || Buffer.isBuffer(media.source)) {
       form.addPart({
-        headers: { 'content-disposition': `form-data; name="${id}";filename="${fileName}"` },
+        headers: { 'content-disposition': `form-data; name="${id}"; filename="${fileName}"` },
         body: media.source
       })
     }
   }
   return Promise.resolve()
+}
+
+function isKoaResponse (response) {
+  return typeof response.set === 'function' && typeof response.header === 'object'
+}
+
+function answerToWebhook (response, payload = {}) {
+  if (!includesMedia(payload)) {
+    if (isKoaResponse(response)) {
+      response.body = payload
+      return Promise.resolve(WebhookReplyStub)
+    }
+    if (!response.headersSent) {
+      response.setHeader('content-type', 'application/json')
+    }
+    return new Promise((resolve) =>
+      response.end(JSON.stringify(payload), 'utf-8', () => resolve(WebhookReplyStub))
+    )
+  }
+
+  return buildFormDataConfig(payload)
+    .then(({ headers, body }) => {
+      if (isKoaResponse(response)) {
+        Object.keys(headers).forEach(key => response.set(key, headers[key]))
+        response.body = body
+        return Promise.resolve(WebhookReplyStub)
+      }
+      if (!response.headersSent) {
+        Object.keys(headers).forEach(key => response.setHeader(key, headers[key]))
+      }
+      return new Promise((resolve) => {
+        response.on('finish', () => resolve(WebhookReplyStub))
+        body.pipe(response)
+      })
+    })
+}
+
+class ApiClient {
+  constructor (token, options, webhookResponse) {
+    this.token = token
+    this.options = Object.assign({}, DefaultOptions, options)
+    if (this.options.apiRoot.startsWith('http://')) {
+      this.options.agent = null
+    }
+    this.response = webhookResponse
+  }
+
+  set webhookReply (enable) {
+    this.options.webhookReply = enable
+  }
+
+  get webhookReply () {
+    return this.options.webhookReply
+  }
+
+  callApi (method, payload = {}) {
+    const { token, options, response, responseEnd } = this
+    if (options.webhookReply && response && !responseEnd && !WebhookBlacklist.includes(method)) {
+      debug('▷ webhook call:', method)
+      this.responseEnd = true
+      return answerToWebhook(response, Object.assign({ method }, payload))
+    }
+
+    if (!token) {
+      throw new TelegramError({
+        error_code: 401,
+        description: 'Bot Token is required'
+      })
+    }
+
+    debug('▶︎ http call:', method)
+    const buildConfig = includesMedia(payload)
+      ? buildFormDataConfig(Object.assign({ method }, payload))
+      : buildJSONConfig(payload)
+    return buildConfig
+      .then((config) => {
+        const apiUrl = `${options.apiRoot}/bot${token}/${method}`
+        config.agent = options.agent
+        return fetch(apiUrl, config)
+      })
+      .then((res) => res.text())
+      .then((text) => {
+        return safeJSONParse(text) || {
+          error_code: 500,
+          description: 'Unsupported http response from Telegram',
+          response: text
+        }
+      })
+      .then((data) => {
+        if (!data.ok) {
+          throw new TelegramError(data, { method, payload })
+        }
+        return data.result
+      })
+  }
 }
 
 module.exports = ApiClient

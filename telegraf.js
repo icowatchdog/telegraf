@@ -14,6 +14,8 @@ const DefaultOptions = {
   handlerTimeout: 0
 }
 
+const noop = () => {}
+
 class Telegraf extends Composer {
   constructor (token, options) {
     super()
@@ -33,8 +35,10 @@ class Telegraf extends Composer {
   }
 
   set token (token) {
-    const config = this.telegram ? this.telegram.options : this.options.telegram
-    this.telegram = new Telegram(token, config)
+    this.telegram = new Telegram(token, this.telegram
+      ? this.telegram.options
+      : this.options.telegram
+    )
   }
 
   get token () {
@@ -58,12 +62,13 @@ class Telegraf extends Composer {
     return generateCallback(path, (update, res) => this.handleUpdate(update, res), debug)
   }
 
-  startPolling (timeout = 30, limit = 100, allowedUpdates) {
+  startPolling (timeout = 30, limit = 100, allowedUpdates, stopCallback = noop) {
     this.polling.timeout = timeout
     this.polling.limit = limit
     this.polling.allowedUpdates = allowedUpdates
       ? Array.isArray(allowedUpdates) ? allowedUpdates : [`${allowedUpdates}`]
       : null
+    this.polling.stopCallback = stopCallback
     if (!this.polling.started) {
       this.polling.started = true
       this.fetchUpdates()
@@ -85,7 +90,7 @@ class Telegraf extends Composer {
     return this
   }
 
-  stop (cb = () => {}) {
+  stop (cb = noop) {
     this.polling.started = false
     if (this.webhookServer) {
       this.webhookServer.close(cb)
@@ -111,10 +116,8 @@ class Telegraf extends Composer {
 
   handleUpdate (update, webhookResponse) {
     debug('⚡ update', update.update_id)
-    const telegram = webhookResponse && this.webhookReply
-      ? new Telegram(this.token, this.telegram.options, webhookResponse)
-      : this.telegram
-    const ctx = new Context(update, telegram, this.options)
+    const tg = new Telegram(this.token, this.telegram.options, webhookResponse)
+    const ctx = new Context(update, tg, this.options)
     Object.assign(ctx, this.context)
     return this.middleware()(ctx).catch(this.handleError)
   }
@@ -138,6 +141,7 @@ class Telegraf extends Composer {
         console.error('Failed to process updates.', err)
         this.polling.started = false
         this.polling.offset = 0
+        this.polling.stopCallback && this.polling.stopCallback()
         return []
       })
       .then((updates) => {

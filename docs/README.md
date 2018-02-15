@@ -14,24 +14,24 @@ These accounts serve as an interface for code running somewhere on your server.
 
 #### Features
 
-- Full [Telegram Bot API 3.5](https://core.telegram.org/bots/api) support
+- Full [Telegram Bot API 3.6](https://core.telegram.org/bots/api) support
 - [Telegram Payment Platform](https://telegram.org/blog/payments)
 - [HTML5 Games](https://core.telegram.org/bots/api#games)
 - [Inline mode](https://core.telegram.org/bots/api#inline-mode)
 - Incredibly fast
-- AWS **λ**/now/Heroku/Firebase/Glitch/Whatever ready
-- `http/https/koa/Connect.js/express.js` compatible webhooks
+- [now](https://now.sh)/[Firebase](https://firebase.google.com/products/functions/)/[Glitch](https://dashing-light.glitch.me)/[Heroku](https://devcenter.heroku.com/articles/getting-started-with-nodejs#introduction)/[AWS **λ**](https://docs.aws.amazon.com/lambda/latest/dg/nodejs-prog-model-handler.html)/Whatever ready
+- `http/https/fastify/Connect.js/express.js` compatible webhooks
 - Easy to extend
 
 #### Installation
 
-```
-$ npm install telegraf
+```bash
+$ npm install telegraf --save
 ```
 
 or using yarn
 
-```
+```bash
 $ yarn add telegraf
 ```
 
@@ -41,10 +41,12 @@ $ yarn add telegraf
 const Telegraf = require('telegraf')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
+
 bot.start((ctx) => {
   console.log('started:', ctx.from.id)
   return ctx.reply('Welcome!')
 })
+
 bot.command('help', (ctx) => ctx.reply('Try send a sticker!'))
 bot.hears('hi', (ctx) => ctx.reply('Hey there!'))
 bot.hears(/buy/i, (ctx) => ctx.reply('Buy-buy!'))
@@ -56,7 +58,7 @@ bot.startPolling()
 For additional bot examples see [`examples`](https://github.com/telegraf/telegraf/tree/master/docs/examples) folder.
 
 <p class="tip">
-  Also, checkout our [step-by-step instructions](https://github.com/telegraf/micro-bot) for building and deploying basic bot with [🤖 micro-bot](https://github.com/telegraf/micro-bot)(Telegraf high level wrapper)
+  Also, checkout our <a href="https://github.com/telegraf/micro-bot">step-by-step instructions</a> for building and deploying basic bot with <a href="https://github.com/telegraf/micro-bot">🤖 micro-bot</a>(Telegraf high level wrapper)
 </p>
 
 **Community bots:**
@@ -69,6 +71,9 @@ For additional bot examples see [`examples`](https://github.com/telegraf/telegra
 * [Chat Linker Bot](https://github.com/jt3k/chat-linker)
 * [Spyfall Game Bot](https://github.com/verget/telegram-spy-game)
 * [telegram-telegraf-bot](https://github.com/Finalgalaxy/telegram-telegraf-bot)
+* [midnabot](https://github.com/wsknorth/midnabot)
+* [Metal Archives Bot](https://github.com/amiralies/metalarchives-telegram-bot)
+* [Syntax Highlighter Bot](https://github.com/piterden/syntax-highlighter-bot)
 * Send PR to add link to your bot
 
 ## Introduction
@@ -114,7 +119,7 @@ bot.on('text', (ctx) => ctx.reply('Hello World'))
 
 ##### Cascading with async functions
 
-You might need Babel(or `node >=v.7.x` with harmony flags) for running following example.
+You might need Babel or `node >=v.7.x` with harmony flags or `@std/esm` package for running following example.
 
 ```js
 bot.use(async (ctx, next) => {
@@ -138,7 +143,6 @@ bot.use(async (ctx, next) => {
 - [statsd integration](https://github.com/telegraf/telegraf-statsd)
 - [and more...](https://www.npmjs.com/search?q=telegraf-)
 
-
 #### Error handling
 
 By default Telegraf will print all errors to stderr and rethrow error.
@@ -158,23 +162,27 @@ bot.catch((err) => {
 A Telegraf Context encapsulates telegram message.
 Context is created per request and contains following props:
 
+* `ctx.telegram `            - Telegram client instance
+* `ctx.webhookReply `        - Shortcut to `ctx.telegram.webhookReply`
+* `ctx.updateType `          - Update type (message, inline_query, etc.)
+
+* `[ctx.updateSubTypes]`     - Update subtypes (text, sticker, audio, etc.)
+* `[ctx.message]`            - Received message
+* `[ctx.editedMessage]`      - Edited message
+* `[ctx.inlineQuery]`        - Received inline query
+* `[ctx.chosenInlineResult]` - Received inline query result
+* `[ctx.callbackQuery]`      - Received callback query
+* `[ctx.shippingQuery]`      - Shipping query
+* `[ctx.preCheckoutQuery]`   - Precheckout query
+* `[ctx.channelPost]`        - New incoming channel post of any kind — text, photo, sticker, etc.
+* `[ctx.editedChannelPost]`  - New version of a channel post that is known to the bot and was edited
+* `[ctx.chat]`               - Current chat info
+* `[ctx.from]`               - Sender info
+* `[ctx.match]`              - Regex match (available only for `hears`, `command`, `action` handlers)
+
 ```js
 bot.use((ctx) => {
-  ctx.telegram             // Telegram client instance
-  ctx.updateType           // Update type (message, inline_query, etc.)
-  [ctx.updateSubTypes]     // Update subtypes (text, sticker, audio, etc.)
-  [ctx.message]            // Received message
-  [ctx.editedMessage]      // Edited message
-  [ctx.inlineQuery]        // Received inline query
-  [ctx.chosenInlineResult] // Received inline query result
-  [ctx.callbackQuery]      // Received callback query
-  [ctx.shippingQuery]      // Shipping query
-  [ctx.preCheckoutQuery]   // Precheckout query
-  [ctx.channelPost]        // New incoming channel post of any kind — text, photo, sticker, etc.
-  [ctx.editedChannelPost]  // New version of a channel post that is known to the bot and was edited
-  [ctx.chat]               // Current chat info
-  [ctx.from]               // Sender info
-  [ctx.match]              // Regex match (available only for `hears`, `command`, `action` handlers)
+  console.log(ctx.message)
 })
 ```
 
@@ -199,101 +207,94 @@ bot.on('text', (ctx) => {
 
 Context shortcuts for **message** update:
 
-```js
-addStickerToSet() -> telegram.addStickerToSet()
-createNewStickerSet() -> telegram.createNewStickerSet()
-deleteChatPhoto() -> telegram.deleteChatPhoto()
-deleteMessage() -> telegram.deleteMessage()
-deleteStickerFromSet() -> telegram.deleteStickerFromSet()
-exportChatInviteLink() -> telegram.exportChatInviteLink()
-getChat() -> telegram.getChat()
-getChatAdministrators() -> telegram.getChatAdministrators()
-getChatMember() -> telegram.getChatMember()
-getChatMembersCount() -> telegram.getChatMembersCount()
-getStickerSet() -> telegram.getStickerSet()
-leaveChat() -> telegram.leaveChat()
-pinChatMessage() -> telegram.pinChatMessage()
-reply() -> telegram.sendMessage()
-replyWithAudio() -> telegram.sendAudio()
-replyWithChatAction() -> telegram.sendChatAction()
-replyWithDocument() -> telegram.sendDocument()
-replyWithGame() -> telegram.sendGame()
-replyWithHTML() -> telegram.sendMessage()
-replyWithInvoice() -> telegram.sendInvoice()
-replyWithLocation() -> telegram.sendLocation()
-replyWithMarkdown() -> telegram.sendMessage()
-replyWithPhoto() -> telegram.sendPhoto()
-replyWithMediaGroup() -> telegram.sendMediaGroup()
-replyWithSticker() -> telegram.sendSticker()
-replyWithVideo() -> telegram.sendVideo()
-replyWithVideoNote() -> telegram.sendVideoNote()
-replyWithVoice() -> telegram.sendVoice()
-setChatDescription() -> telegram.setChatDescription()
-setChatPhoto() -> telegram.setChatPhoto()
-setChatTitle() -> telegram.setChatTitle()
-setStickerPositionInSet() -> telegram.setStickerPositionInSet()
-unpinChatMessage() -> telegram.unpinChatMessage()
-uploadStickerFile() -> telegram.uploadStickerFile()
-```
+* `addStickerToSet`         -> [`telegram.addStickerToSet`](#addstickertoset)
+* `createNewStickerSet`     -> [`telegram.createNewStickerSet`](#createnewstickerset)
+* `deleteChatPhoto`         -> [`telegram.deleteChatPhoto`](#deletechatphoto)
+* `deleteMessage`           -> [`telegram.deleteMessage`](#deletemessage)
+* `deleteStickerFromSet`    -> [`telegram.deleteStickerFromSet`](#deletestickerfromset)
+* `exportChatInviteLink`    -> [`telegram.exportChatInviteLink`](#exportchatinvitelink)
+* `getChat`                 -> [`telegram.getChat`](#getchat)
+* `getChatAdministrators`   -> [`telegram.getChatAdministrators`](#getchatadministrators)
+* `getChatMember`           -> [`telegram.getChatMember`](#getchatmember)
+* `getChatMembersCount`     -> [`telegram.getChatMembersCount`](#getchatmemberscount)
+* `getStickerSet`           -> [`telegram.getStickerSet`](#getstickerset)
+* `leaveChat`               -> [`telegram.leaveChat`](#leavechat)
+* `pinChatMessage`          -> [`telegram.pinChatMessage`](#pinchatmessage)
+* `reply`                   -> [`telegram.sendMessage`](#sendmessage)
+* `replyWithAudio`          -> [`telegram.sendAudio`](#sendaudio)
+* `replyWithChatAction`     -> [`telegram.sendChatAction`](#sendchataction)
+* `replyWithDocument`       -> [`telegram.sendDocument`](#senddocument)
+* `replyWithGame`           -> [`telegram.sendGame`](#sendgame)
+* `replyWithHTML`           -> [`telegram.sendMessage`](#sendmessage)
+* `replyWithInvoice`        -> [`telegram.sendInvoice`](#sendinvoice)
+* `replyWithLocation`       -> [`telegram.sendLocation`](#sendlocation)
+* `replyWithMarkdown`       -> [`telegram.sendMessage`](#sendmessage)
+* `replyWithPhoto`          -> [`telegram.sendPhoto`](#sendphoto)
+* `replyWithMediaGroup`     -> [`telegram.sendMediaGroup`](#sendmediagroup)
+* `replyWithSticker`        -> [`telegram.sendSticker`](#sendsticker)
+* `replyWithVideo`          -> [`telegram.sendVideo`](#sendvideo)
+* `replyWithVideoNote`      -> [`telegram.sendVideoNote`](#sendvideonote)
+* `replyWithVoice`          -> [`telegram.sendVoice`](#sendvoice)
+* `setChatDescription`      -> [`telegram.setChatDescription`](#setchatdescription)
+* `setChatPhoto`            -> [`telegram.setChatPhoto`](#setchatphoto)
+* `setChatTitle`            -> [`telegram.setChatTitle`](#setchattitle)
+* `setStickerPositionInSet` -> [`telegram.setStickerPositionInSet`](#setstickerpositioninset)
+* `unpinChatMessage`        -> [`telegram.unpinChatMessage`](#unpinchatmessage)
+* `uploadStickerFile`       -> [`telegram.uploadStickerFile`](#uploadstickerfile)
 
 Context shortcuts for **callback_query** update:
 
-```js
-addStickerToSet() -> telegram.addStickerToSet()
-answerCbQuery() -> telegram.answerCbQuery()
-answerGameQuery() -> telegram.answerGameQuery()
-createNewStickerSet() -> telegram.createNewStickerSet()
-deleteChatPhoto() -> telegram.deleteChatPhoto()
-deleteMessage() -> telegram.deleteMessage()
-deleteStickerFromSet() -> telegram.deleteStickerFromSet()
-editMessageCaption() -> telegram.editMessageCaption()
-editMessageReplyMarkup() -> telegram.editMessageReplyMarkup()
-editMessageText() -> telegram.editMessageText()
-exportChatInviteLink() -> telegram.exportChatInviteLink()
-getChat() -> telegram.getChat()
-getChatAdministrators() -> telegram.getChatAdministrators()
-getChatMember() -> telegram.getChatMember()
-getChatMembersCount() -> telegram.getChatMembersCount()
-getStickerSet() -> telegram.getStickerSet()
-leaveChat() -> telegram.leaveChat()
-pinChatMessage() -> telegram.pinChatMessage()
-reply() -> telegram.sendMessage()
-replyWithAudio() -> telegram.sendAudio()
-replyWithChatAction() -> telegram.sendChatAction()
-replyWithDocument() -> telegram.sendDocument()
-replyWithGame() -> telegram.sendGame()
-replyWithHTML() -> telegram.sendMessage()
-replyWithInvoice() -> telegram.sendInvoice()
-replyWithLocation() -> telegram.sendLocation()
-replyWithMarkdown() -> telegram.sendMessage()
-replyWithPhoto() -> telegram.sendPhoto()
-replyWithMediaGroup() -> telegram.sendMediaGroup()
-replyWithSticker() -> telegram.sendSticker()
-replyWithVideo() -> telegram.sendVideo()
-replyWithVideoNote() -> telegram.sendVideoNote()
-replyWithVoice() -> telegram.sendVoice()
-setChatDescription() -> telegram.setChatDescription()
-setChatPhoto() -> telegram.setChatPhoto()
-setChatTitle() -> telegram.setChatTitle()
-setStickerPositionInSet() -> telegram.setStickerPositionInSet()
-unpinChatMessage() -> telegram.unpinChatMessage()
-uploadStickerFile() -> telegram.uploadStickerFile()
-```
+* `addStickerToSet`         -> [`telegram.addStickerToSet`](#addstickertoset)
+* `answerCbQuery`           -> [`telegram.answerCbQuery`](#answercbquery)
+* `answerGameQuery`         -> [`telegram.answerGameQuery`](#answergamequery)
+* `createNewStickerSet`     -> [`telegram.createNewStickerSet`](#createnewstickerset)
+* `deleteChatPhoto`         -> [`telegram.deleteChatPhoto`](#deletechatphoto)
+* `deleteMessage`           -> [`telegram.deleteMessage`](#deletemessage)
+* `deleteStickerFromSet`    -> [`telegram.deleteStickerFromSet`](#deletestickerfromset)
+* `editMessageCaption`      -> [`telegram.editMessageCaption`](#editmessagecaption)
+* `editMessageReplyMarkup`  -> [`telegram.editMessageReplyMarkup`](#editmessagereplymarkup)
+* `editMessageText`         -> [`telegram.editMessageText`](#editmessagetext)
+* `exportChatInviteLink`    -> [`telegram.exportChatInviteLink`](#exportchatinvitelink)
+* `getChat`                 -> [`telegram.getChat`](#getchat)
+* `getChatAdministrators`   -> [`telegram.getChatAdministrators`](#getchatadministrators)
+* `getChatMember`           -> [`telegram.getChatMember`](#getchatmember)
+* `getChatMembersCount`     -> [`telegram.getChatMembersCount`](#getchatmemberscount)
+* `getStickerSet`           -> [`telegram.getStickerSet`](#getstickerset)
+* `leaveChat`               -> [`telegram.leaveChat`](#leavechat)
+* `pinChatMessage`          -> [`telegram.pinChatMessage`](#pinchatmessage)
+* `reply`                   -> [`telegram.sendMessage`](#sendmessage)
+* `replyWithAudio`          -> [`telegram.sendAudio`](#sendaudio)
+* `replyWithChatAction`     -> [`telegram.sendChatAction`](#sendchataction)
+* `replyWithDocument`       -> [`telegram.sendDocument`](#senddocument)
+* `replyWithGame`           -> [`telegram.sendGame`](#sendgame)
+* `replyWithHTML`           -> [`telegram.sendMessage`](#sendmessage)
+* `replyWithInvoice`        -> [`telegram.sendInvoice`](#sendinvoice)
+* `replyWithLocation`       -> [`telegram.sendLocation`](#sendlocation)
+* `replyWithMarkdown`       -> [`telegram.sendMessage`](#sendmessage)
+* `replyWithPhoto`          -> [`telegram.sendPhoto`](#sendphoto)
+* `replyWithMediaGroup`     -> [`telegram.sendMediaGroup`](#sendmediagroup)
+* `replyWithSticker`        -> [`telegram.sendSticker`](#sendsticker)
+* `replyWithVideo`          -> [`telegram.sendVideo`](#sendvideo)
+* `replyWithVideoNote`      -> [`telegram.sendVideoNote`](#sendvideonote)
+* `replyWithVoice`          -> [`telegram.sendVoice`](#sendvoice)
+* `setChatDescription`      -> [`telegram.setChatDescription`](#setchatdescription)
+* `setChatPhoto`            -> [`telegram.setChatPhoto`](#setchatphoto)
+* `setChatTitle`            -> [`telegram.setChatTitle`](#setchattitle)
+* `setStickerPositionInSet` -> [`telegram.setStickerPositionInSet`](#setstickerpositioninset)
+* `unpinChatMessage`        -> [`telegram.unpinChatMessage`](#unpinchatmessage)
+* `uploadStickerFile`       -> [`telegram.uploadStickerFile`](#uploadstickerfile)
 
 Context shortcuts for **inline_query** update:
-```js
-answerInlineQuery() -> telegram.answerInlineQuery()
-```
+
+* `answerInlineQuery`-> [`telegram.answerInlineQuery`](#answerinlinequery)
 
 Context shortcuts for **shipping_query** update:
-```js
-answerShippingQuery() -> telegram.answerShippingQuery()
-```
+
+* `answerShippingQuery`-> [`telegram.answerShippingQuery`](#answershippingquery)
 
 Context shortcuts for **pre_checkout_query** update:
-```js
-answerPreCheckoutQuery() -> telegram.answerPreCheckoutQuery()
-```
+
+* `answerPreCheckoutQuery`-> [`telegram.answerPreCheckoutQuery`](#answerprecheckoutquery)
 
 ##### Shortcuts usage example
 
@@ -343,7 +344,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN)
 
 // Naive authorization middleware
 bot.use((ctx, next) => {
-  ctx.state.role = getUserRole(ctx.message) 
+  ctx.state.role = getUserRole(ctx.message)
   return next()
 })
 
@@ -383,40 +384,62 @@ Supported update types:
 - `edited_channel_post`
 
 Available update sub-types:
-`text`, `audio`, `document`, `photo`, `sticker`, `video`, `voice`, `contact`, 
-`location`, `venue`, `new_chat_members`, `left_chat_member`, `new_chat_title`, 
-`new_chat_photo`, `delete_chat_photo`, `group_chat_created`, `migrate_to_chat_id`,
-`supergroup_chat_created`, `channel_chat_created`, `migrate_from_chat_id`, 
-`pinned_message`, `game`, `video_note`, `invoice`, `successful_payment`.
+
+- `text`
+- `audio`
+- `document`
+- `photo`
+- `sticker`
+- `video`
+- `voice`
+- `contact`
+- `location`
+- `venue`
+- `new_chat_members`
+- `left_chat_member`
+- `new_chat_title`
+- `new_chat_photo`
+- `delete_chat_photo`
+- `group_chat_created`
+- `migrate_to_chat_id`
+- `supergroup_chat_created`
+- `channel_chat_created`
+- `migrate_from_chat_id`
+- `pinned_message`
+- `game`
+- `video_note`
+- `invoice`
+- `successful_payment`
+- `connected_website`
 
 ```js
-
 // Handle message update
-bot.on('message', (ctx) =>  {
+bot.on('message', (ctx) => {
   return ctx.reply('Hey there!')
 })
 
 // Handle sticker or photo update
-bot.on(['sticker', 'photo'], (ctx) =>  {
+bot.on(['sticker', 'photo'], (ctx) => {
   console.log(ctx.message)
   return ctx.reply('Cool!')
 })
-
-```[Telegram oelated Official docs](https://core.telegram.org/bots/api#message)
+```
+[Official Docs](https://core.telegram.org/bots/api#message)
 
 #### Webhooks
 
 ```js
+require('dotenv')
 
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
 // TLS options
 const tlsOptions = {
-  key:  fs.readFileSync('server-key.pem'),
+  key: fs.readFileSync('server-key.pem'),
   cert: fs.readFileSync('server-cert.pem'),
-  ca: [ 
+  ca: [
     // This is necessary only if the client uses the self-signed certificate.
-    fs.readFileSync('client-cert.pem') 
+    fs.readFileSync('client-cert.pem')
   ]
 }
 
@@ -428,15 +451,13 @@ bot.telegram.setWebhook('https://server.tld:8443/secret-path', {
 // Start https webhook
 bot.startWebhook('/secret-path', tlsOptions, 8443)
 
-
 // Http webhook, for nginx/heroku users.
 bot.startWebhook('/secret-path', null, 5000)
-
 ```
 
 Use webhookCallback() if you want to attach telegraf to existing http server
-```js
 
+```js
 require('http')
   .createServer(bot.webhookCallback('/secret-path'))
   .listen(3000)
@@ -444,7 +465,6 @@ require('http')
 require('https')
   .createServer(tlsOptions, bot.webhookCallback('/secret-path'))
   .listen(8443)
-
 ```
 
 Express.js example integration
@@ -465,7 +485,25 @@ expressApp.get('/', (req, res) => {
 expressApp.listen(3000, () => {
   console.log('Example app listening on port 3000!')
 })
+```
 
+Fastify example integration
+
+```js
+const Telegraf = require('telegraf')
+const fastifyApp = require('fastify')()
+
+const bot = new Telegraf(process.env.BOT_TOKEN)
+
+bot.on('text', ({ reply }) => reply('Hey there!'))
+fastifyApp.use(bot.webhookCallback('/secret-path'))
+// Set telegram webhook
+// npm install -g localtunnel && lt --port 3000
+bot.telegram.setWebhook('https://------.localtunnel.me/secret-path')
+
+fastifyApp.listen(3000, () => {
+  console.log('Example app listening on port 3000!')
+})
 ```
 
 Koa.js example integration
@@ -500,29 +538,29 @@ Supported file sources:
 Also you can provide optional name of file as `filename`.
 
 ```js
-bot.on('message', (ctx) =>  {
+bot.on('message', (ctx) => {
   // resend existing file by file_id
-  ctx.answerWithSticker('123123jkbhj6b')
-  
+  ctx.replyWithSticker('123123jkbhj6b')
+
   // send file
-  ctx.answerWithVideo({ source: '/path/to/video.mp4' })
-  
+  ctx.replyWithVideo({ source: '/path/to/video.mp4' })
+
   // send stream
-  ctx.answerWithVideo({
+  ctx.replyWithVideo({
     source: fs.createReadStream('/path/to/video.mp4')
   })
-  
+
   // send buffer
-  ctx.answerWithVoice({
-    source: new Buffer()
+  ctx.replyWithVoice({
+    source: Buffer.alloc()
   })
 
   // send url via Telegram server
-  ctx.answerWithPhoto('http://lorempixel.com/400/200/cats/')
+  ctx.replyWithPhoto('https://picsum.photos/200/300/')
 
   // pipe url content
-  ctx.answerWithPhoto({
-    url: 'http://lorempixel.com/400/200/cats/',
+  ctx.replyWithPhoto({
+    url: 'https://picsum.photos/200/300/?random',
     filename: 'kitten.jpg'
   })
 })
@@ -557,7 +595,7 @@ Telegraf options:
     agent: null,        // https.Agent instance, allows custom proxy, certificate, keep alive, etc.
     webhookReply: true  // Reply via webhook
   },
-  username: ''          // Bot username (optional)  
+  username: ''          // Bot username (optional)
 }
 ```
 
@@ -602,7 +640,7 @@ Registers middleware for handling `text` messages.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| triggers | `string[]/RegEx[]|Function` | Triggers |
+| triggers | `string/string[]/RegEx/RegEx[]/Function` | Triggers |
 | middleware | `function` | Middleware |
 
 ##### command
@@ -634,7 +672,7 @@ Entity handling.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| entity | `string/string[]/function` | Entity name |
+| entity | `string/string[]/RegEx/RegEx[]/Function` | Entity name |
 | middleware | `function` | Middleware |
 
 ##### mention
@@ -667,7 +705,7 @@ Registers middleware for handling `callback_data` actions with regular expressio
 
 | Param | Type | Description |
 | --- | --- | --- |
-| triggers | `string[]/RegEx[]` | Triggers |
+| triggers | `string/string[]/RegEx/RegEx[]` | Triggers |
 | middleware | `function` | Middleware |
 
 
@@ -685,13 +723,14 @@ Registers middleware for handling `callback_data` actions with game query.
 
 Start poll updates.
 
-`telegraf.startPolling([timeout], [limit], [allowedUpdates])`
+`telegraf.startPolling([timeout], [limit], [allowedUpdates], [stopCallback])`
 
 | Param | Type | Default | Description |
 | --- | --- | --- | --- |
 | [timeout] | `number` | 30 | Poll timeout in seconds |
 | [limit] | `number` | 100 | Limits the number of updates to be retrieved |
 | [allowedUpdates] | `string[]` | null | List the types of updates you want your bot to receive |
+| [stopCallback] | `function` | null | Polling stop callback |
 
 ##### startWebhook
 
@@ -764,7 +803,7 @@ Generates middleware for handling `text` messages with regular expressions.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| triggers | `string[]/RegEx[]/Function[]` | Triggers |
+| triggers | `string/string[]/RegEx/RegEx[]/Function/Function[]` | Triggers |
 | handler | `function` | Handler |
 
 ##### Telegraf.action
@@ -775,7 +814,7 @@ Generates middleware for handling `callbackQuery` data with regular expressions.
 
 | Param | Type | Description |
 | --- | --- | --- |
-| triggers | `string[]/RegEx[]/Function[]` | Triggers |
+| triggers | `string/string[]/RegEx/RegEx[]/Function/Function[]` | Triggers |
 | handler | `function` | Handler |
 
 ##### Telegraf.passThru
@@ -873,7 +912,7 @@ Use this property to control `reply via webhook` feature.
 Use this method to add a new sticker to a set created by the bot.
 
 `telegram.addStickerToSet(ownerId, name, stickerData) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#addstickertoset)
+[Official documentation](https://core.telegram.org/bots/api#addstickertoset)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -886,7 +925,7 @@ Use this method to add a new sticker to a set created by the bot.
 Use this method to send answers to callback queries.
 
 `telegram.answerCbQuery(callbackQueryId, text, [showAlert], [extra]) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#answercallbackquery)
+[Official documentation](https://core.telegram.org/bots/api#answercallbackquery)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -948,14 +987,14 @@ Use this method to send answers to an inline query.
 Use this method to create new sticker set owned by a user.
 
 `telegram.createNewStickerSet(ownerId, name, title, stickerData, [isMasks]) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#createnewstickerset)
+[Official documentation](https://core.telegram.org/bots/api#createnewstickerset)
 
 | Param | Type | Description |
 | --- | --- | --- |
 | ownerId | `string` | User identifier of sticker set owner |
 | name | `string` | Sticker set name |
 | title | `string` | Sticker set title |
-| stickerData | `Object` | Sticker data({png_sticker: 'stiker file', emojis: '😉', mask__position: '' }) |
+| stickerData | `object` | Sticker data({png_sticker: 'stiker file', emojis: '😉', mask__position: '' }) |
 | [isMasks] | `bool` | Pass True, if a set of mask stickers should be created |
 
 ##### deleteChatStickerSet
@@ -963,7 +1002,7 @@ Use this method to create new sticker set owned by a user.
 Use this method to delete a group sticker set from a supergroup.
 
 `telegram.deleteChatStickerSet(chatId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#deletechatstickerset)
+[Official documentation](https://core.telegram.org/bots/api#deletechatstickerset)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -974,7 +1013,7 @@ Use this method to delete a group sticker set from a supergroup.
 Use this method to delete bot messages.
 
 `telegram.deleteMessage(chatId, messageId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#deletemessage)
+[Official documentation](https://core.telegram.org/bots/api#deletemessage)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -986,7 +1025,7 @@ Use this method to delete bot messages.
 Use this method to delete a sticker from a set created by the bot.
 
 `telegram.deleteStickerFromSet(stickerId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#deletestickerfromset)
+[Official documentation](https://core.telegram.org/bots/api#deletestickerfromset)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1011,7 +1050,7 @@ Use this method to edit captions of messages sent by the bot or via the bot.
 Use this method to edit live location messages sent by the bot or via the bot.
 
 `telegram.editMessageLiveLocation(latitude, longitude, chatId, messageId, inlineMessageId, [markup]) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#editmessagelivelocation)
+[Official documentation](https://core.telegram.org/bots/api#editmessagelivelocation)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1088,7 +1127,7 @@ Use this method to get up to date information about the chat (current name of th
 ns, current username of a user, group or channel, etc.).
 
 `telegram.getChat(chatId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#getchat)
+[Official documentation](https://core.telegram.org/bots/api#getchat)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1099,7 +1138,7 @@ ns, current username of a user, group or channel, etc.).
 Use this method to get a list of administrators in a chat. On success, returns an Array of ChatMember objects that contains information about all chat administrators except other bots. If the chat is a group or a supergroup and no administrators were appointed, only the creator will be returned.
 
 `telegram.getChatAdministrators(chatId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#getchatadministrators)
+[Official documentation](https://core.telegram.org/bots/api#getchatadministrators)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1110,12 +1149,12 @@ Use this method to get a list of administrators in a chat. On success, returns a
 Use this method to set the score of the specified user in a game. On success, if the message was sent by the bot, returns the edited Message, otherwise returns True. Returns an error, if the new score is not greater than the user's current score in the chat.
 
 `telegram.setGameScore(userId, score, inlineMessageId, chatId, messageId, [editMessage], [force]) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#setgamescore)
+[Official documentation](https://core.telegram.org/bots/api#setgamescore)
 
 | Param | Type | Description |
 | --- | --- | --- |
-| userId | `number`\ | Target User id |
-| score | `number`\ | Target User id |
+| userId | `number` | Target User id |
+| score | `number` | Target User id |
 | inlineMessageId | `string` | Inline message id |
 | chatId | `number/string` | Target Chat id |
 | messageId | `number/string` | Message id |
@@ -1127,7 +1166,7 @@ Use this method to set the score of the specified user in a game. On success, if
 Use this method to get data for high score tables. Will return the score of the specified user and several of his neighbors in a game. On success, returns an Array of GameHighScore objects.
 
 `telegram.getGameHighScores(userId, inlineMessageId, chatId, messageId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#getgamehighscores)
+[Official documentation](https://core.telegram.org/bots/api#getgamehighscores)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1141,19 +1180,19 @@ Use this method to get data for high score tables. Will return the score of the 
 Use this method to get information about a member of a chat.
 
 `telegram.getChatMember(chatId, userId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#getchatmember)
+[Official documentation](https://core.telegram.org/bots/api#getchatmember)
 
 | Param | Type | Description |
 | --- | --- | --- |
 | chatId | `number/string` | Chat id |
-| userId | `number` |	User identifier |
+| userId | `number` |   User identifier |
 
 ##### getChatMembersCount
 
 Use this method to get the number of members in a chat.
 
 `telegram.getChatMembersCount(chatId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#getchatmemberscount)
+[Official documentation](https://core.telegram.org/bots/api#getchatmemberscount)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1164,7 +1203,7 @@ Use this method to get the number of members in a chat.
 Returns basic info about a file and prepare it for downloading.
 
 `telegram.getFile(fileId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#getfile)
+[Official documentation](https://core.telegram.org/bots/api#getfile)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1185,7 +1224,7 @@ Returns link to file.
 Returns basic information about the bot.
 
 `telegram.getMe() => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#getme)
+[Official documentation](https://core.telegram.org/bots/api#getme)
 
 ##### getStickerSet
 
@@ -1196,14 +1235,14 @@ Use this method to get a sticker set.
 | Param | Type | Description |
 | --- | --- | --- |
 | name | `string` | Short name of the sticker set |
-[Telegram official docs](https://core.telegram.org/bots/api#getstickerset)
+[Official documentation](https://core.telegram.org/bots/api#getstickerset)
 
 ##### getUserProfilePhotos
 
 Returns profiles photos for provided user.
 
 `telegram.getUserProfilePhotos(userId, [offset], [limit]) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#getuserprofilephotos)
+[Official documentation](https://core.telegram.org/bots/api#getuserprofilephotos)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1252,7 +1291,7 @@ Use this method to promote or demote a user in a supergroup or a channel.
 Use this method to export an invite link to a supergroup or a channel.
 
 `telegram.exportChatInviteLink(chatId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#exportchatinvitelink)
+[Official documentation](https://core.telegram.org/bots/api#exportchatinvitelink)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1263,7 +1302,7 @@ Use this method to export an invite link to a supergroup or a channel.
 Use this method to set a new profile photo for the chat.
 
 `telegram.setChatPhoto(chatId, photo) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#setchatphoto)
+[Official documentation](https://core.telegram.org/bots/api#setchatphoto)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1275,7 +1314,7 @@ Use this method to set a new profile photo for the chat.
 Use this method to delete a chat photo.
 
 `telegram.deleteChatPhoto(chatId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#deletechatphoto)
+[Official documentation](https://core.telegram.org/bots/api#deletechatphoto)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1286,7 +1325,7 @@ Use this method to delete a chat photo.
 Use this method to change the title of a chat.
 
 `telegram.setChatTitle(chatId, title) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#setchattitle)
+[Official documentation](https://core.telegram.org/bots/api#setchattitle)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1298,7 +1337,7 @@ Use this method to change the title of a chat.
 Use this method to change the description of a supergroup or a channel.
 
 `telegram.setChatDescription(chatId, description) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#setchattitle)
+[Official documentation](https://core.telegram.org/bots/api#setchattitle)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1310,7 +1349,7 @@ Use this method to change the description of a supergroup or a channel.
 Use this method to set a new group sticker set for a supergroup. 
 
 `telegram.setChatStickerSet(chatId, stickerSetName) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#setchatstickerset)
+[Official documentation](https://core.telegram.org/bots/api#setchatstickerset)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1334,7 +1373,7 @@ Use this method to pin a message in a supergroup.
 Use this method to unpin a message in a supergroup chat.
 
 `telegram.unpinChatMessage(chatId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#unpinchatmessage)
+[Official documentation](https://core.telegram.org/bots/api#unpinchatmessage)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1345,7 +1384,7 @@ Use this method to unpin a message in a supergroup chat.
 Use this method for your bot to leave a group, supergroup or channel.
 
 `telegram.leaveChat(chatId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#leavechat)
+[Official documentation](https://core.telegram.org/bots/api#leavechat)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1356,7 +1395,7 @@ Use this method for your bot to leave a group, supergroup or channel.
 Removes webhook integration.
 
 `telegram.deleteWebhook() => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#deletewebhook)
+[Official documentation](https://core.telegram.org/bots/api#deletewebhook)
 
 ##### sendAudio
 
@@ -1558,7 +1597,7 @@ Sends voice.
 Use this method to stop updating a live location message sent by the bot or via the bot (for inline bots) before live_period expires.
 
 `telegram.stopMessageLiveLocation(chatId, messageId, inlineMessageId, [markup]) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#stopmessagelivelocation)
+[Official documentation](https://core.telegram.org/bots/api#stopmessagelivelocation)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1572,7 +1611,7 @@ Use this method to stop updating a live location message sent by the bot or via 
 Use this method to upload a .png file with a sticker for later use in createNewStickerSet and addStickerToSet methods.
 
 `telegram.uploadStickerFile(ownerId, stickerFile) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#uploadstickerfile)
+[Official documentation](https://core.telegram.org/bots/api#uploadstickerfile)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1584,7 +1623,7 @@ Use this method to upload a .png file with a sticker for later use in createNewS
 Specifies an url to receive incoming updates via an outgoing webhook.
 
 `telegram.setWebhook(url, [cert], [maxConnections], [allowedUpdates]) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#setwebhook)
+[Official documentation](https://core.telegram.org/bots/api#setwebhook)
 
 | Param | Type | Description |
 | ---  | --- | --- |
@@ -1598,7 +1637,7 @@ Specifies an url to receive incoming updates via an outgoing webhook.
 Use this method to unban a previously kicked user in a supergroup.
 
 `telegram.unbanChatMember(chatId, userId) => Promise`
-[Telegram official docs](https://core.telegram.org/bots/api#unbanchatmember)
+[Official documentation](https://core.telegram.org/bots/api#unbanchatmember)
 
 | Param | Type | Description |
 | --- | --- | --- |
@@ -1607,11 +1646,11 @@ Use this method to unban a previously kicked user in a supergroup.
 
 #### Extra
 
-Telegram message options helper, [see examples](https://github.com/telegraf/telegraf/tree/develop/examples/).
+Telegram message options helper, [see examples](https://github.com/telegraf/telegraf/tree/develop/docs/examples/).
 
 #### Markup
 
-Telegram markup helper, [see examples](https://github.com/telegraf/telegraf/tree/develop/examples/).
+Telegram markup helper, [see examples](https://github.com/telegraf/telegraf/tree/develop/docs/examples/).
 
 #### Stage
 
@@ -1666,11 +1705,12 @@ bot.on('message', (ctx) => {
 For handling group/supergroup commands(`/start@your_bot`) you need to provide bot username.
 
 ```js
-
-// Provide with options
 const bot = new Telegraf(process.env.BOT_TOKEN, {username: 'your_bot'})
+```
 
-// Or you can get username from Telegram server
+Also, you can get the username from Telegram server.
+
+```js
 const bot = new Telegraf(process.env.BOT_TOKEN)
 
 bot.telegram.getMe().then((botInfo) => {
